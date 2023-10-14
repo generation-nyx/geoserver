@@ -8,7 +8,7 @@ info:
     name: GeoServer
     email: 'geoserver-users@sourceforge.net'
     url: 'http://geoserver.org/comm/'
-host: localhost:8080
+host: geoserver:8080
 basePath: /geoserver/rest/security
 
 paths:
