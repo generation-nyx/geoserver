@@ -2,8 +2,9 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-
 package org.geoserver.ogcapi;
+
+import static org.geoserver.ows.URLMangler.URLType.RESOURCE;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import freemarker.template.TemplateMethodModelEx;
@@ -42,39 +43,25 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
  */
 public abstract class AbstractHTMLMessageConverter<T> extends AbstractHttpMessageConverter<T> {
     static final Logger LOGGER = Logging.getLogger(AbstractHTMLMessageConverter.class);
-    protected final Class<?> binding;
     protected final GeoServer geoServer;
     protected final FreemarkerTemplateSupport templateSupport;
-    protected final Class<? extends ServiceInfo> serviceConfigurationClass;
 
     /**
      * Builds a message converter
      *
-     * @param binding The bean meant to act as the model for the template
-     * @param serviceConfigurationClass The class holding the configuration for the service
      * @param templateSupport A loader used to locate templates
      * @param geoServer The
      */
     public AbstractHTMLMessageConverter(
-            Class<?> binding,
-            Class<? extends ServiceInfo> serviceConfigurationClass,
-            FreemarkerTemplateSupport templateSupport,
-            GeoServer geoServer) {
+            FreemarkerTemplateSupport templateSupport, GeoServer geoServer) {
         super(MediaType.TEXT_HTML);
-        this.binding = binding;
         this.geoServer = geoServer;
-        this.serviceConfigurationClass = serviceConfigurationClass;
         this.templateSupport = templateSupport;
     }
 
     @Override
     public boolean canRead(Class<?> clazz, MediaType mediaType) {
         return false;
-    }
-
-    @Override
-    protected boolean supports(Class<?> clazz) {
-        return binding.isAssignableFrom(clazz);
     }
 
     @Override
@@ -96,7 +83,7 @@ public abstract class AbstractHTMLMessageConverter<T> extends AbstractHttpMessag
     protected HashMap<String, Object> setupModel(Object value) {
         HashMap<String, Object> model = new HashMap<>();
         model.put("model", value);
-        model.put("service", geoServer.getService(serviceConfigurationClass));
+        model.put("service", geoServer.getService(getServiceConfigurationClass()));
         model.put("contact", geoServer.getGlobal().getSettings().getContact());
         final String baseURL = getBaseURL();
         model.put("baseURL", baseURL);
@@ -104,56 +91,77 @@ public abstract class AbstractHTMLMessageConverter<T> extends AbstractHttpMessag
         return model;
     }
 
+    /** Returns the class holding the configuration for the service */
+    protected abstract Class<? extends ServiceInfo> getServiceConfigurationClass();
+
     /**
      * Adds the <code>serviceLink</code>, <code>serviceLink</code> and <code>externalLinks</code>
      * functions to the model, for usage in the tempalte
      */
     @SuppressWarnings("unchecked") // TemplateMethodModelEx is not generified
     protected void addLinkFunctions(String baseURL, Map<String, Object> model) {
+        model.put("serviceLink", (TemplateMethodModelEx) arguments -> serviceLink(arguments));
         model.put(
-                "serviceLink",
-                (TemplateMethodModelEx)
-                        arguments -> {
-                            APIRequestInfo requestInfo = APIRequestInfo.get();
-                            return ResponseUtils.buildURL(
-                                    requestInfo.getBaseURL(),
-                                    ResponseUtils.appendPath(
-                                            requestInfo.getServiceLandingPage(),
-                                            (String) unwrapArgument(arguments.get(0))),
-                                    arguments.size() > 1
-                                            ? Collections.singletonMap(
-                                                    "f", (String) unwrapArgument(arguments.get(1)))
-                                            : null,
-                                    URLMangler.URLType.SERVICE);
-                        });
+                "genericServiceLink",
+                (TemplateMethodModelEx) arguments -> genericServiceLink(arguments));
         model.put(
                 "resourceLink",
                 (TemplateMethodModelEx)
-                        arguments ->
-                                ResponseUtils.buildURL(
-                                        baseURL,
-                                        (String) unwrapArgument(arguments.get(0)),
-                                        null,
-                                        URLMangler.URLType.RESOURCE));
-        model.put(
-                "externalLink",
-                (TemplateMethodModelEx)
-                        arguments ->
-                                ResponseUtils.buildURL(
-                                        baseURL,
-                                        (String) unwrapArgument(arguments.get(0)),
-                                        null,
-                                        URLMangler.URLType.EXTERNAL));
+                        arguments -> simpleLinkFunction(baseURL, arguments, RESOURCE));
         model.put(
                 "htmlExtensions",
                 (TemplateMethodModelEx)
-                        arguments -> {
-                            if (arguments != null) {
-                                arguments = unwrapArguments(arguments);
-                            }
-                            return processHtmlExtensions(model, arguments);
-                        });
+                        arguments -> processHtmlExtensions(model, unwrapArguments(arguments)));
         model.put("loadJSON", parseJSON());
+    }
+
+    private String simpleLinkFunction(String baseURL, List arguments, URLMangler.URLType urlType) {
+        return ResponseUtils.buildURL(
+                baseURL, (String) unwrapArgument(arguments.get(0)), null, urlType);
+    }
+
+    /** Builds a service link back to the same service. Used for backlinks. */
+    private String serviceLink(List arguments) {
+        APIRequestInfo requestInfo = APIRequestInfo.get();
+        return ResponseUtils.buildURL(
+                requestInfo.getBaseURL(),
+                ResponseUtils.appendPath(
+                        requestInfo.getServiceLandingPage(),
+                        (String) unwrapArgument(arguments.get(0))),
+                arguments.size() > 1
+                        ? Collections.singletonMap("f", (String) unwrapArgument(arguments.get(1)))
+                        : null,
+                URLMangler.URLType.SERVICE);
+    }
+
+    /** Builds a service link with the provided path, does not inject the current service path */
+    private String genericServiceLink(List arguments) {
+        APIRequestInfo requestInfo = APIRequestInfo.get();
+        return ResponseUtils.buildURL(
+                requestInfo.getBaseURL(),
+                (String) unwrapArgument(arguments.get(0)),
+                arguments.size() > 1
+                        ? argumentsToKVP(arguments.subList(1, arguments.size()))
+                        : null,
+                URLMangler.URLType.SERVICE);
+    }
+
+    /** Turns a list of keys alternating with values into a map */
+    @SuppressWarnings("unchecked")
+    private Map<String, String> argumentsToKVP(List kvp) {
+        if (kvp.size() % 2 != 0)
+            throw new IllegalArgumentException(
+                    "Arguments beyond the first must be a list of key value pairs");
+
+        List<Object> unwrapped = unwrapArguments(kvp);
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i < unwrapped.size(); i += 2) {
+            String key = (String) unwrapped.get(i);
+            String value = (String) unwrapped.get(i + 1);
+            map.put(key, value);
+        }
+
+        return map;
     }
 
     private TemplateMethodModelEx parseJSON() {
@@ -182,6 +190,7 @@ public abstract class AbstractHTMLMessageConverter<T> extends AbstractHttpMessag
     }
 
     public List<Object> unwrapArguments(List<Object> arguments) {
+        if (arguments == null) return null;
         return arguments.stream().map(v -> unwrapArgument(v)).collect(Collectors.toList());
     }
 

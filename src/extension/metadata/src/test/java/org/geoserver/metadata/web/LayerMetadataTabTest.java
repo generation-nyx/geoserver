@@ -8,7 +8,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,7 +51,9 @@ public class LayerMetadataTabTest extends AbstractWicketMetadataTest {
     private LayerInfo layer;
 
     @Before
-    public void before() throws IOException {
+    @Override
+    public void start() throws Exception {
+        super.start();
         login();
         layer = geoServer.getCatalog().getLayerByName("mylayer");
         assertNotNull(layer);
@@ -65,10 +66,12 @@ public class LayerMetadataTabTest extends AbstractWicketMetadataTest {
     }
 
     @After
-    public void after() throws Exception {
+    @Override
+    public void stop() throws Exception {
         logout();
         restoreTemplates();
         restoreLayers();
+        super.stop();
     }
 
     @Test
@@ -85,7 +88,7 @@ public class LayerMetadataTabTest extends AbstractWicketMetadataTest {
                         tester.getComponentFromLastRenderedPage(
                                 "publishedinfo:tabs:panel:metadataPanel:attributesPanel:attributesTablePanel");
         // derived field hidden
-        assertEquals(14, panel.getDataProvider().size());
+        assertEquals(15, panel.getDataProvider().size());
 
         FormTester ft = tester.newFormTester("publishedinfo");
         ft.submit("save");
@@ -698,7 +701,7 @@ public class LayerMetadataTabTest extends AbstractWicketMetadataTest {
                 (MarkupContainer)
                         tester.getComponentFromLastRenderedPage(
                                 "publishedinfo:tabs:panel:metadataPanel:attributesPanel:attributesTablePanel:listContainer:items");
-        assertEquals(14, c.size());
+        assertEquals(15, c.size());
 
         tester.assertComponent(
                 "publishedinfo:tabs:panel:metadataPanel:attributesPanel:attributesTablePanel:listContainer:items:13:itemProperties:1:component:attributesTablePanel:listContainer:items:2:itemProperties:1:component:generate",

@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -47,7 +48,26 @@ public final class Files {
         final File file;
 
         private ResourceAdaptor(File file) {
+            valid(file.getPath());
             this.file = file.getAbsoluteFile();
+        }
+
+        /**
+         * GeoServer unit tests heavily utilize single period path components (e.g., ./something or
+         * target/./something) and Windows path separators when running on Windows so this method is
+         * a more lenient version of {@link Paths#valid(String)} that only checks for double period
+         * path components to prevent path traversal vulnerabilities.
+         *
+         * @param path the file path
+         * @return the file path
+         * @throws IllegalArgumentException If path contains '..'
+         */
+        private static String valid(String path) {
+            if (path != null
+                    && Arrays.stream(Paths.convert(path).split("/")).anyMatch(".."::equals)) {
+                throw new IllegalArgumentException("Contains invalid '..' path: " + path);
+            }
+            return path;
         }
 
         @Override
@@ -199,7 +219,7 @@ public final class Files {
 
         @Override
         public Resource get(String resourcePath) {
-            return new ResourceAdaptor(new File(file, resourcePath));
+            return new ResourceAdaptor(new File(file, valid(resourcePath)));
         }
 
         @Override
@@ -261,6 +281,11 @@ public final class Files {
             } else if (!file.equals(other.file)) return false;
             return true;
         }
+
+        @Override
+        public boolean isInternal() {
+            return false;
+        }
     }
 
     private static final Logger LOGGER = Logging.getLogger(Files.class);
@@ -300,7 +325,9 @@ public final class Files {
      * @param baseDirectory Optional base directory used to resolve relative file URLs
      * @param url File URL or path relative to data directory
      * @return File indicated by provided URL location
+     * @deprecated use {@link Resources#fromURL(Resource, URL)}
      */
+    @Deprecated
     public static File url(File baseDirectory, String url) {
         String ss;
         if (!Objects.equals(url, ss = StringUtils.removeStart(url, "resource:"))) {
@@ -354,23 +381,13 @@ public final class Files {
     }
 
     /**
-     * Adapter allowing a File reference to be quickly used a Resource.
+     * Adapter allowing a File reference to be quickly used as a Resource.
      *
      * <p>This is used as a placeholder when updating code to use resource, while still maintaining
-     * deprecated File methods:
+     * deprecated File methods. It is also useful in writing test cases to simulate interaction with
+     * the data directory.
      *
-     * <pre><code>
-     * //deprecated
-     * public FileWatcher( File file ){
-     *    this.resource = Files.asResource( file );
-     * }
-     * //deprecated
-     * public FileWatcher( Resource resource ){
-     *    this.resource = resource;
-     * }
-     * </code></pre>
-     *
-     * Note this only an adapter for single files (not directories).
+     * <p>Note this only an adapter for single files (not directories).
      *
      * @param file File to adapt as a Resource
      * @return resource adaptor for provided file

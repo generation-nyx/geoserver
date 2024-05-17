@@ -36,7 +36,7 @@ public class OAuth2FilterConfigValidatorTest extends GeoServerMockTestSupport {
 
     @Before
     public void setValidator() {
-        validator = new OAuth2FilterConfigValidator(getSecurityManager());
+        validator = new OpenIdConnectFilterConfigValidator(getSecurityManager());
     }
 
     @Test
@@ -104,9 +104,11 @@ public class OAuth2FilterConfigValidatorTest extends GeoServerMockTestSupport {
         failed = false;
         try {
             validator.validateOAuth2FilterConfig(config);
-        } catch (OAuth2FilterConfigException ex) {
+        } catch (OpenIdConnectFilterConfigException ex) {
             assertEquals(
-                    OAuth2FilterConfigException.OAUTH2_CHECKTOKENENDPOINT_URL_REQUIRED, ex.getId());
+                    OpenIdConnectFilterConfigException
+                            .OAUTH2_CHECKTOKEN_OR_WKTS_ENDPOINT_URL_REQUIRED,
+                    ex.getId());
             assertEquals(0, ex.getArgs().length);
             LOGGER.info(ex.getMessage());
             failed = true;
@@ -173,6 +175,13 @@ public class OAuth2FilterConfigValidatorTest extends GeoServerMockTestSupport {
         config.setScopes("email,profile");
 
         validator.validateOAuth2FilterConfig(config);
+
+        config.setUsePKCE(true);
+        config.setClientSecret(null);
+        validator.validateOAuth2FilterConfig(config);
+
+        config.setUsePKCE(false);
+        config.setClientSecret("oauth2clientsecret");
     }
 
     @Test

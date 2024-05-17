@@ -29,12 +29,14 @@ officially part of the GeoServer releases. They are however built along with the
    cov-json/index
    dds/index
    elasticsearch/index
+   features-autopopulate/index
    features-templating/index
    flatgeobuf/index
    gdal/index
    geomesa/index
    geopkg/index
    geostyler/index
+   graticules/index
    gsr/index
    gwc-azure-blob/index
    gwc-distributed/index
@@ -46,10 +48,12 @@ officially part of the GeoServer releases. They are however built along with the
    jdbcconfig/index
    jdbcstore/index
    jms-cluster/index
+   jwt-headers/index
    keycloak/index
    libdeflate/index
    mbtiles/index
    monitor-hibernate/index
+   monitor-kafka/index
    ncwms/index
    netcdf-ghrsst/index
    notification/index
@@ -72,4 +76,5 @@ officially part of the GeoServer releases. They are however built along with the
    xslt/index
    web-service-auth/index
    webp/index
+   wfs-freemarker/index
    wps-longitudinal-profile/index

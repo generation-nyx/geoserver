@@ -403,6 +403,37 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     @Test
+    public void testGetFeaturesWithNoROIAsShapefile() throws Exception {
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = createDefaultTestingDownloadProcess();
+
+        FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
+        SimpleFeatureCollection rawSource =
+                (SimpleFeatureCollection) ti.getFeatureSource(null, null).getFeatures();
+        // Download
+        RawData shpeZip =
+                executeVectorDownload(
+                        downloadProcess,
+                        MockData.POLYGONS,
+                        "application/zip",
+                        "application/zip",
+                        null,
+                        null,
+                        false,
+                        "EPSG:4326");
+
+        try (AutoCloseableResource resource =
+                        new AutoCloseableResource(getResourceManager(), shpeZip);
+                InputStream is = new FileInputStream(resource.getFile())) {
+            ShapefileDataStore store = decodeShape(is);
+            SimpleFeatureCollection rawTarget = store.getFeatureSource().getFeatures();
+            Assert.assertNotNull(rawTarget);
+            Assert.assertEquals(rawSource.size(), rawTarget.size());
+            store.dispose();
+        }
+    }
+
+    @Test
     public void testGetFeaturesAsGeoPackageZipped() throws Exception {
         // Creates the new process for the download
         DownloadProcess downloadProcess = createDefaultTestingDownloadProcess();
@@ -647,13 +678,34 @@ public class DownloadProcessTest extends WPSTestSupport {
             Polygon roi,
             boolean cropToGeometry)
             throws FactoryException {
+        return executeVectorDownload(
+                downloadProcess,
+                polygons,
+                mimeType,
+                outputFormat,
+                roiCRS,
+                roi,
+                cropToGeometry,
+                null);
+    }
+
+    private RawData executeVectorDownload(
+            DownloadProcess downloadProcess,
+            QName polygons,
+            String mimeType,
+            String outputFormat,
+            String roiCRS,
+            Polygon roi,
+            boolean cropToGeometry,
+            String targetCRS)
+            throws FactoryException {
         return downloadProcess.execute(
                 getLayerId(polygons), // layerName
                 null, // filter
                 mimeType,
                 outputFormat,
-                null, // targetCRS
-                CRS.decode(roiCRS), // roiCRS
+                targetCRS == null ? null : CRS.decode(targetCRS), // targetCRS
+                roiCRS == null ? null : CRS.decode(roiCRS), // roiCRS
                 roi, // roi
                 cropToGeometry, // cropToGeometry
                 null, // interpolation
@@ -2596,74 +2648,6 @@ public class DownloadProcessTest extends WPSTestSupport {
                             + "Unable to proceed!: Download Limits Exceeded. Unable to proceed!",
                     e.getMessage()
                             + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-        }
-    }
-
-    /**
-     * Test download estimator for raster data. The result should exceed the integer limits
-     *
-     * @throws Exception the exception
-     */
-    @Test
-    public void testDownloadEstimatorIntegerMaxValueLimitRaster() throws Exception {
-        // Estimator process for checking limits
-        DownloadEstimatorProcess limits =
-                new DownloadEstimatorProcess(
-                        new StaticDownloadServiceConfiguration(
-                                new DownloadServiceConfiguration(
-                                        DownloadServiceConfiguration.NO_LIMIT,
-                                        (long) 1E12, // huge number, way above integer limits
-                                        DownloadServiceConfiguration.NO_LIMIT,
-                                        DownloadServiceConfiguration.NO_LIMIT,
-                                        DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL,
-                                        DownloadServiceConfiguration.NO_LIMIT)),
-                        getGeoServer());
-
-        final WPSResourceManager resourceManager = getResourceManager();
-        // Creates the new process for the download
-        DownloadProcess downloadProcess =
-                new DownloadProcess(getGeoServer(), limits, resourceManager);
-        // ROI as polygon
-        Polygon roi =
-                (Polygon)
-                        new WKTReader2()
-                                .read(
-                                        "POLYGON (( -127.57473954542964 54.06575021619523, "
-                                                + "-130.8545966116691 52.00807146727025, -129.50812897394974 49.85372324691927, "
-                                                + "-130.5300633861675 49.20465679591609, -129.25955033314003 48.60392508062591, "
-                                                + "-128.00975216684665 50.986137055052474, -125.8623089087404 48.63154492960477, "
-                                                + "-123.984159178178 50.68231871628503, -126.91186316993704 52.15307567440926, "
-                                                + "-125.3444367403868 53.54787804784162, -127.57473954542964 54.06575021619523 ))");
-        roi.setSRID(4326);
-
-        try {
-            // Download the data with ROI. It should throw an exception
-            downloadProcess.execute(
-                    getLayerId(MockData.USA_WORLDIMG), // layerName
-                    null, // filter
-                    "image/tiff", // outputFormat
-                    "image/tiff",
-                    null, // targetCRS
-                    WGS84, // roiCRS
-                    roi, // roi
-                    false, // cropToGeometry
-                    null, // interpolation
-                    100000, // targetSizeX
-                    60000, // targetSizeY
-                    null, // bandSelectIndices
-                    null, // Writing params
-                    false,
-                    false,
-                    0d,
-                    null,
-                    new NullProgressListener() // progressListener
-                    );
-
-            Assert.fail();
-        } catch (ProcessException e) {
-            Assert.assertEquals(
-                    "java.lang.IllegalArgumentException: Download Limits Exceeded. Unable to proceed!",
-                    e.getMessage());
         }
     }
 

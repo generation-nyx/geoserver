@@ -49,6 +49,8 @@ clustered quartz database at the same time at start-up, which is likely
 to cause issues. This initialisation needs to happen only once for the
 entire cluster.
 
+.. _taskmanager_user_databases:
+
 Databases
 ~~~~~~~~~
 
@@ -151,8 +153,7 @@ configured as follows:
         <property name="rawGeometryTable" ref="geomtable"/>
     </bean>
 
-
-
+.. _taskmanager_user_external_geoserver:
 
 External GeoServers
 ~~~~~~~~~~~~~~~~~~~
@@ -168,7 +169,31 @@ configuration file.
         <property name="url" value="http://my.geoserver/geoserver" /> 
         <property name="username" value="admin" />
         <property name="password" value="geoserver" />
+        <property name="supportMetadata" value="true" />
     </bean>
+
+The ''supportsMetadata'' field indicates whether this target geoserver contains the
+the :ref:`Metadata Community Module <community_metadata>`, which provides additional
+support for it in certain tasks.
+
+The configuration above will log-in to geoserver using basic authentication.
+Task Manager also supports geoservers protected with keycloak:
+
+.. code:: xml
+
+    <bean class="org.geoserver.taskmanager.external.impl.ExternalKeycloakGSImpl">
+        <property name="name" value="keycloakgs"/>
+        <property name="url" value="http://my.geoserver/geoserver"/>
+        <property name="username" value="keycloak_admin"/>
+        <property name="password" value="keycloak_password"/>
+        <property name="clientId" value="my clientid"/>
+        <property name="clientSecret" value="my clientsecret"/>
+        <property name="real" value="my realm"/>
+        <property name="authUrl" value="http://my.keycloak.server/auth"/>
+        <property name="supportMetadata" value="true" />
+    </bean>
+
+.. _taskmanager_user_file_services:
 
 File Services
 ~~~~~~~~~~~~~
@@ -475,7 +500,10 @@ Task Types
 -  ``MetaDataSyncTask`` Synchronise the metadata between a local layer
    and a layer on another geoserver (without re-publishing). The user
    can specify a target geoserver, a local and a remote layer. Does not
-   support commit/rollback.
+   support commit/rollback. If the target geoserver supports the :ref:`Metadata Community Module <community_metadata>` 
+   native metadata attributes mapped to custom metadata attributes will be updated.
+   Note that all of the publication tasks will synchronize metadata in the same
+   way.
 
 -  ``ConfigureCachedLayer`` Configure caching for a layer on a remote
    geoserver with internal GWC, synchronise the settings with the local 

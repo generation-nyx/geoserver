@@ -15,6 +15,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.wicket.util.file.File;
 import org.geoserver.config.GeoServer;
 import org.geoserver.data.test.MockData;
+import org.geoserver.metadata.data.service.impl.ConfigurationServiceImpl;
 import org.geoserver.metadata.data.service.impl.MetadataConstants;
 import org.geoserver.metadata.data.service.impl.MetadataTemplateServiceImpl;
 import org.geoserver.util.IOUtils;
@@ -54,6 +55,8 @@ public abstract class AbstractMetadataTest {
 
     @Autowired protected MetadataTemplateServiceImpl templateService;
 
+    @Autowired private ConfigurationServiceImpl configService;
+
     @BeforeClass
     public static void init() throws Exception {
         if (DATA_DIRECTORY == null) {
@@ -71,7 +74,7 @@ public abstract class AbstractMetadataTest {
             metadata.mkdirs();
             metadataTemplates.mkdirs();
             IOUtils.copy(
-                    AbstractMetadataTest.class.getResourceAsStream("fouteinhoud.yaml"),
+                    AbstractMetadataTest.class.getResourceAsStream("fouteinhoud.yaml.ignore"),
                     new File(metadata, "fouteinhoud.yaml"));
             IOUtils.copy(
                     AbstractMetadataTest.class.getResourceAsStream("metadata-geonetwork.yaml"),
@@ -126,6 +129,7 @@ public abstract class AbstractMetadataTest {
             DATA_DIRECTORY.setUp();
             geoServer.reload();
         }
+        configService.reload();
     }
 
     /**

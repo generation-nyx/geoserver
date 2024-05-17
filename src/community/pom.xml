@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.geoserver</groupId>
     <artifactId>geoserver</artifactId>
-    <version>2.25-SNAPSHOT</version>
+    <version>2.26-SNAPSHOT</version>
   </parent>
 
   <groupId>org.geoserver</groupId>
@@ -72,6 +72,7 @@
             <descriptor>release/ext-cog.xml</descriptor>
             <descriptor>release/ext-s3-geotiff.xml</descriptor>
             <descriptor>release/ext-ogr-datastore.xml</descriptor>
+            <descriptor>release/ext-jwt-headers.xml</descriptor>
             <descriptor>release/ext-ogcapi-coverages.xml</descriptor>
             <descriptor>release/ext-ogcapi-dggs.xml</descriptor>
             <descriptor>release/ext-ogcapi-features.xml</descriptor>
@@ -81,6 +82,7 @@
             <descriptor>release/ext-ogcapi-tiled-features.xml</descriptor>
             <descriptor>release/ext-ogcapi-tiles.xml</descriptor>
             <descriptor>release/ext-importer-jdbc.xml</descriptor>
+            <descriptor>release/ext-features-autopopulate.xml</descriptor>
             <descriptor>release/ext-features-templating.xml</descriptor>
             <descriptor>release/ext-gsr.xml</descriptor>
             <descriptor>release/ext-smart-data-loader.xml</descriptor>
@@ -97,7 +99,11 @@
             <descriptor>release/ext-xslt.xml</descriptor>
             <descriptor>release/ext-datadir-catalog-loader.xml</descriptor>
             <descriptor>release/ext-wps-longitudinal-profile.xml</descriptor>
+            <descriptor>release/ext-monitor-kafka.xml</descriptor>
+            <descriptor>release/ext-graticule.xml</descriptor>
+            <descriptor>release/ext-wfs-freemarker.xml</descriptor>
           </descriptors>
+          <finalName>geoserver-${project.version}</finalName>
         </configuration>
       </plugin>
       <plugin>
@@ -214,6 +220,7 @@
         <module>backup-restore</module>
         <module>ncwms</module>
         <module>gwc-sqlite</module>
+        <module>jwt-headers</module>
         <module>security</module>
         <module>notification</module>
         <module>notification-common</module>
@@ -226,6 +233,7 @@
         <module>web-ogr</module>
         <module>ogcapi</module>
         <module>importer-jdbc</module>
+        <module>features-autopopulate</module>
         <module>features-templating</module>
         <module>gsr</module>
         <module>cog</module>
@@ -243,6 +251,9 @@
         <module>imagemap</module>
         <module>datadir-catalog-loader</module>
         <module>wps-longitudinal-profile</module>
+        <module>monitor-kafka</module>
+        <module>graticule</module>
+        <module>wfs-freemarker</module>
       </modules>
     </profile>
     <profile>
@@ -456,6 +467,15 @@
         <module>gwc-sqlite</module>
       </modules>
     </profile>
+
+    <profile>
+      <id>jwt-headers</id>
+      <modules>
+        <module>jwt-headers/jwt-headers-util</module>
+        <module>jwt-headers/gs-jwt-headers</module>
+      </modules>
+    </profile>
+
     <profile>
       <id>oauth2-google</id>
       <modules>
@@ -552,7 +572,6 @@
         <plugins>
           <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.2.0</version>
             <configuration>
               <descriptors>
                 <descriptor>release/ext-monitor-hibernate.xml</descriptor>
@@ -563,6 +582,24 @@
       </build>
       <modules>
         <module>monitor-hibernate</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>monitor-kafka</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <configuration>
+              <descriptors>
+                <descriptor>release/ext-monitor-kafka.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <modules>
+        <module>monitor-kafka</module>
       </modules>
     </profile>
     <profile>
@@ -581,6 +618,12 @@
       <id>importer-jdbc</id>
       <modules>
         <module>importer-jdbc</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>features-autopopulate</id>
+      <modules>
+        <module>features-autopopulate</module>
       </modules>
     </profile>
     <profile>
@@ -671,6 +714,30 @@
       <id>wps-longitudinal-profile</id>
       <modules>
         <module>wps-longitudinal-profile</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>graticule</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <configuration>
+              <descriptors>
+                <descriptor>release/ext-graticule.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <modules>
+        <module>graticule</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>wfs-freemarker</id>
+      <modules>
+        <module>wfs-freemarker</module>
       </modules>
     </profile>
   </profiles>

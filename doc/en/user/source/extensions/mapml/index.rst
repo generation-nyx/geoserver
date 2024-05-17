@@ -3,12 +3,13 @@
 MapML 
 =========
 
-Map Markup Language (MapML) is a text-based format which allows map authors to encode map information as hypertext documents exchanged over the Uniform Interface of the Web. The format definition is still a work-in-progress by the Maps for HTML W3C Community Group, but various tools to work with the format already exist, including a Leaflet-based map viewer. For more information on MapML refer to the `Maps for HTML Community Group <https://maps4html.org/>`.
+Map Markup Language (MapML) is a text-based format which allows map authors to encode map information as hypertext documents exchanged over the Uniform Interface of the Web. The format definition is a work-in-progress by the Maps for HTML W3C Community Group. Various tools to work with the format exist, including a Leaflet-based map viewer included in the GeoServer MapML extension. For more information on MapML refer to the `Maps for HTML Community Group <https://maps4html.org/>`.
 
-The MapML module for GeoServer adds new MapML resources to access WMS and WFS services configured in Geoserver. The MapML modules includes support for styles, tiling, querying, sharding, and dimensions options for WMS layers, and also provides a MapML outputFormat for WMS GetFeatureInfo and WFS GetFeatures requests. See below for information on installing and configuring the MapML module.
-    .. warning:: The MapML extension performance is negatively affected by a recent upgrade to Spring in the GeoServer project.  This affects all versions since 2.22.0. To avoid serious performance penalty, please remove "text/.*" from the gzip filter <param-value> in your web.xml servlet configuration.
+The MapML module for GeoServer adds new MapML resources to access WMS, WMTS and WFS services configured in Geoserver. The MapML modules includes support for styles, tiling, querying, and dimensions options for WMS layers, and also provides a MapML outputFormat for WMS GetFeatureInfo and WFS GetFeatures requests. See below for information on installing and configuring the MapML module.
 
-    .. warning:: MapML is an experimental proposed extension of HTML for the Web. The objective of the format is to standardize map, layer and feature semantics in HTML.  As the format progresses towards a Web standard, it may change.  Always use the latest version of this extension, and follow the project's progress at https://maps4html.org.
+    .. note:: The Maps for HTML community kindly requests that if you use MapML and the software provided here or elsewhere, that you give us feedback about your experience: open an issue or start a discussion on `GitHub <https://github.com/Maps4HTML>`_.
+
+    .. warning:: MapML is an experimental proposed extension of HTML for the Web. The objective of the project is to standardize map, layer and feature semantics in HTML.  As the format progresses towards a Web standard, it may change slightly.  Always use the latest version of this extension, and follow or join in the project's progress at https://maps4html.org.
 
 
 Installation
@@ -28,6 +29,23 @@ Configuration
 Configuration can be done using the Geoserver administrator GUI. The MapML configuration is accessible in the *MapML Settings* section under the *Publishing* tab of the Layer or Layer Group Configuration page for the layer or layer group being configured. Here is the MapML Settings section, with some example values filled in:
 
 .. figure:: images/mapml_config_ui.png
+
+There is also a MapML-specific global WMS setting in the *MapML Extension* section of the ``WMS`` Services Settings Page.  This setting is used to control the handling of multi-layer requests.  
+
+.. figure:: images/mapml_config_wms.png
+
+If the ``Represent multi-layer requests as multiple elements`` is checked (and the configuration is saved), an individually accessible <map-extent> element will be generated for each requested layer.  The default is to represent the layers as a single (hidden) <map-extent>.
+
+.. figure:: images/mapml_wms_multi_extent.png
+
+Styles
+------
+
+Like any WMS layer or layer group available from GeoServer, a comma-separated list of styles may be supplied in the WMS GetMap `styles` parameter.  If no style name is requested, the default style will be used for that layer.  For single-layer or single-layer group requests, the set of alternate styles is presented as an option list in the layer preview map's layer control, with the currently requested style indicated.
+
+.. figure:: images/mapml_preview_multiple_styles_menu.png
+
+Note that in order to ensure that the default layer style is properly available to the preview map's option list, make sure that the style is moved to the ``Available Styles`` list in the ``Publishing`` tab of the Layer Configuration page.  If the style is set to ``Default`` but not explicitly made ``Available``, the style will not be available to MapML.  Similarly but a with a slight variation in requirement, for Layer Groups, the 'default' layer group style must be copied and given a name matching `default-style-` plus the layer group name.
 
 License Info
 ^^^^^^^^^^^^
@@ -51,10 +69,143 @@ Using tiles to access the layer can increase the performance of your web map. Th
 **Use Tiles**
   If the "Use Tiles" checkbox is checked, by default the output MapML will define a tile-based reference to the WMS server. Otherwise, an image-based reference will be used.  If one or more of the MapML-defined GridSets is referenced by the layer or layer group in its "Tile Caching" profile, GeoServer will generate tile references instead of generating WMS GetMap URLs in the MapML document body.
 
+Vector Settings
+^^^^^^^^^^^^^^^
+
+MapML supports the serving of vector feature representations of the data.  This results in a smoother user navigation experience, smaller bandwidth requirements, and more options for dynamic styling on the client-side.
+
+**Use Features**
+  If the "Use Features" checkbox is checked, by default the output MapML will define a feature-based reference to the WMS server. Otherwise, an image-based reference will be used.  Note that this option is only available for vector source data.  MapML <map-extent> element with a feature link:
+
+.. code-block:: html
+
+    <map-extent units="WGS84" label="Manhattan (NY) points of interest" checked="checked">
+      <map-input name="z" type="zoom" min="0" max="21"/>
+      <map-input name="xmin" type="location" rel="map" position="top-left" axis="longitude" units="gcrs" min="-74.0118315772888" max="-74.00153046439813"/>
+      <map-input name="ymin" type="location" rel="map" position="bottom-left" axis="latitude" units="gcrs" min="40.70754683896324" max="40.719885123828675"/>
+      <map-input name="xmax" type="location" rel="map" position="top-right" axis="longitude" units="gcrs" min="-74.0118315772888" max="-74.00153046439813"/>
+      <map-input name="ymax" type="location" rel="map" position="top-left" axis="latitude" units="gcrs" min="40.70754683896324" max="40.719885123828675"/>
+      <map-input name="w" type="width" min="1" max="10000"/>
+      <map-input name="h" type="height" min="1" max="10000"/>
+      <map-link tref="http://localhost:8080/geoserver/tiger/wms?format_options=mapmlfeatures:true&amp;request=GetMap&amp;crs=MapML:WGS84&amp;bbox={xmin},{ymin},{xmax},{ymax}&amp;format=text/mapml&amp;language=en&amp;version=1.3.0&amp;transparent=true&amp;service=WMS&amp;layers=poi&amp;width={w}&amp;styles=&amp;height={h}" rel="features"/>
+    </map-extent>
+
+When both "Use Tiles" and "Use Features" are checked, the MapML extension will request tiled maps in ``text/mapml`` format.
+The contents of the tiles will be clipped to the requested area, and feature attributes will be skiipped, as the MapML client cannot leverage them for the moment.
+
+
+**Feature Styling**
+  Basic styling of vector features is supported by the MapML extension.  The style is defined in the WMS GetMap request, and the MapML extension will convert the rules and style attributes defined in the SLD into CSS classes and apply those classes to the appropriate features.  Note that this conversion is currently limited to basic styling and does not include transformation functions, external graphics, or styling dependent on individual feature attributes (non-static style values).  See below for a more detailed compatibility table: 
+
++------------------+-------------------+-----------+
+| Symbolizer       | Style Attribute   | Supported |
++==================+===================+===========+
+| PointSymbolizer  | Opacity           | yes       |
+|                  +-------------------+-----------+
+|                  | Default Radius    | yes       |
+|                  +-------------------+-----------+
+|                  | Radius            | yes       |
+|                  +-------------------+-----------+
+|                  | Rotation          | no        |
+|                  +-------------------+-----------+
+|                  | Displacement      | no        |
+|                  +-------------------+-----------+
+|                  | Anchor Point      | no        |
+|                  +-------------------+-----------+
+|                  | Gap               | no        |
+|                  +-------------------+-----------+
+|                  | Initial Gap       | no        |
+|                  +-------------------+-----------+
+|                  | Well Known Name   | yes       |
+|                  +-------------------+-----------+
+|                  | External Mark     | no        |
+|                  +-------------------+-----------+
+|                  | Graphic Fill      | no        |
+|                  +-------------------+-----------+
+|                  | Fill Color        | yes       |
+|                  +-------------------+-----------+
+|                  | Fill Opacity      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Color      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Opacity    | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Width      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Linecap    | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Array | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Offset| yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Line Join  | no        |
++------------------+-------------------+-----------+
+| LineSymbolizer   | Stroke Linecap    | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Array | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Offset| yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Line Join  | no        |
++------------------+-------------------+-----------+
+| PolygonSymbolizer| Displacement      | no        |
+|                  +-------------------+-----------+
+|                  | Perpendicular Offs| no        |
+|                  +-------------------+-----------+
+|                  | Graphic Fill      | no        |
+|                  +-------------------+-----------+
+|                  | Fill Color        | yes       |
+|                  +-------------------+-----------+
+|                  | Fill Opacity      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Color      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Opacity    | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Width      | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Linecap    | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Array | yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Dash Offset| yes       |
+|                  +-------------------+-----------+
+|                  | Stroke Line Join  | no        |
++------------------+-------------------+-----------+
+| TextSymbolizer   | ALL               | no        |
++------------------+-------------------+-----------+
+| RasterSymbolizer | ALL               | no        |
++------------------+-------------------+-----------+
+| Transformation   | ALL               | no        |
+| Functions        |                   |           |
++------------------+-------------------+-----------+
+| Zoom             | ALL               | yes       |
+| Denominators     |                   |           |
++------------------+-------------------+-----------+
+
+
+WMS GetMap considerations
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, each layer/style pair that is requested via the GetMap parameters is composed into a single <map-extent>...<map-link tref="...">...</map-extent> structure as exemplified above.  
+
+If the 'Represent multi-layer requests as multiple elements' checkbox from the global WMS Settings page is checked as described above, a request for multiple layers or layer groups in MapML format will result in the serialization of a MapML document containing multiple <map-extent> elements. Each layer/style pair is represented by a <map-extent> element in the response.  The <map-extent> elements are represented in the client viewer layer control settings as sub-layers, which turn on and off independently of each other, but which are controlled by the parent <layer-> element's state (checked / unchecked, opacity etc) (right-click or Shift+F10 to obtain context menus):
+
+.. figure:: images/mapml_wms_multi_extent.png
+
+With 'Represent multi-layer requests as multiple elements' checked, if two or more layers are requested in MapML format via the GetMap 'layers' parameter, the MapML extension serialize each layer's <map-extent> according to its "Use Features" and "Use Tiles" settings.  Note that there is currently no "Use Features" setting available for layer groups.
+
 Tile Caching
 ^^^^^^^^^^^^
 
-In the Tile Caching tab panel of the Edit Layer or Edit Layer Group page, at the bottom of the page you will see the table of GridSets that are assigned to the layer or layer group.  The values "WGS84" and "OSMTILE" are equivalent to the EPSG:4326 and EPSG:900913 built in GeoWebCache GridSets. However, for the MapML module to recognize these GridSets, you must select and use the MapML names.   For new layers or layer groups, or newly created grid subsets for a layer or layer group, the MapML values are selected by default.  For existing layers that you wish to enable the use of cached tile references by the MapML service, you will have to select and add those values you wish to support from the dropdown of available GridSets.  The set of recognized values for MapML is "WGS84" (equivalent to EPSG:4326), "OSMTILE" (equivalent to EPSG:900913), "CBMTILE" (Canada Base Map) and "APSTILE" (Alaska Polar Stereographic).
+In the Tile Caching tab panel of the Edit Layer or Edit Layer Group page, at the bottom of the page you will see the table of GridSets that are assigned to the layer or layer group.  
+
+The values ``WGS84`` and ``OSMTILE`` are equivalent to the EPSG:4326 and EPSG:900913 built in GeoWebCache GridSets. 
+However, for the MapML module to recognize these GridSets, you must select and use the MapML names.   For new layers or layer groups, or newly created grid subsets for a layer or layer group, the MapML values are selected by default.  For existing layers that you wish to enable the use of cached tile references by the MapML service, you will have to select and add those values you wish to support from the dropdown of available GridSets.  The set of recognized values for MapML is ``WGS84`` (equivalent to EPSG:4326), ``OSMTILE`` (equivalent to EPSG:900913), ``CBMTILE`` (Canada Base Map) and ``APSTILE`` (Alaska Polar Stereographic).
+
+The MapML client will normally request image tiles against WMTS, but if configured to use feature output,
+it will try to use tiles in ``text/mapml`` format, which should be configured as a cacheable format
+in order to enable WMTS requests.
 
 .. figure:: images/mapml_tile_caching_panel_ui.png
 
@@ -108,37 +259,51 @@ feature is focused.
 MapML Resources
 ---------------
 
-MapML resources will be published for any published WMS layers. The MapML resources will be available at::
-
-  http://{serverName}/geoserver/mapml/{layerName}/{projectionName}?style={styleName}&transparent={true|false}&format={wmsFormat}
+MapML resources will be available for any published WMS layers by making a GetMap request with the WMS output format to ``format=text/mapml``.  See :ref:`WMS` for further WMS details, :ref:`wms_getmap` for GetMap details, and :ref:`wms_output_formats` for output format reference information.
   
+**SRS/CRS**
 
-The ``{layerName}`` is the WMS layer name, and the ``{serverName}`` is the name or IP address of the server on which Geoserver is running. The ``{projectionName}`` must be one of the projections supported by MapML:
+Note that the WMS SRS or CRS must be one of the projections supported by MapML:
 
-- OSMTILE
-- CBMTILE
-- APSTILE
-- WGS84 
+- MapML:WGS84 (or EPSG:4326)
+- MapML:OSMTILE (or EPSG:3857)
+- MapML:CBMTILE (or EPSG:3978)
+- MapML:APSTILE (or EPSG:5936)
 
-Each of the URL query string parameters are optional, but if provided they are effectively passed-through to the underlying WMS service call. Here are some details on the parameters:
+The equivalent EPSG codes are provided for reference, but the MapML names are recommended, as they
+imply not only a coordinate refefence system, but also a tile grid and a set of zoom levels (Tiled CRS), 
+that the MapML client will use when operating in tiled mode. When using tiles, it's also recommended
+to set up tile caching for the same-named gridsets.
 
-**style**
-  If provided, the specified ``{styleName}`` must correspond to an available WMS style to use for the layer.
-  
-**transparent**
-  If provided, must be either ``true`` or ``false``. The same value is passed through to the underlying WMS service. If not provided, it defaults to the inverse of the "opaque" WMS publishing layer setting. 
-  
-**format**
-  If provided, must be a valid WMS format specifier. If not provided, it defaults to ``image/png``. 
+If the native SRS of a layer is not a match for the MapML ones, remember to configure the projection
+policy to "reproject native to declare". You might have to save and reload the layer configuration
+in order to re-compute the native bounds correctly.
+
+If the SRS or CRS is not one of the above, the GetMap request will fail with an ``InvalidParameterValue`` exception.
+The main "MapML" link in the preview page generates a HTML client able to consume MapML resources.
+The link is generated so that it always work, if the CRS configured for the layer is not supported, it will automatically fall back on MapML:WGS84.
+
+
+**MapML Output Format**
+
+The output image format for the MapML resource should be specified using the format_options parameter with a key called ``mapml-wms-format``.  If provided, the provided mime type must be a valid WMS format specifier. If not provided, it defaults to ``image/png``.   
+
+Example::
+
+    http://localhost:8080/geoserver/tiger/wms?service=WMS&version=1.1.0&request=GetMap&layers=tiger:giant_polygon&bbox=-180.0,-90.0,180.0,90.0&width=768&height=384&srs=EPSG:4326&styles=&format=text/mapml&format_options=mapml-wms-format:image/jpeg
 
 MapML Visualization
 -------------------
 
-With the MapML Community Module installed, the GeoServer Layer Preview page is modified to add a link to the MapML resources for each layer and layer group.  The MapML link in the Layer Preview table intercepted by the MapML module, and an HTML Web map page is created on the fly which refers to the MapML resource:
+With the MapML Extension module installed, the GeoServer Layer Preview page is modified to add a WMS GetMap link to the MapML resources for each layer or layer group.  The MapML link in the Layer Preview table is generated by the MapML extension to an HTML Web map page that is created on the fly which refers to the GeoServer resource:
 
 .. figure:: images/mapml_preview_ui.png
 
-You can add layers to the map as you like, by dragging the link URL from the Layer Preview table and dropping it onto another layer's MapML preview.  If all goes well, you should see the layers stacked on the map and in the layer control.
+You can add layers to the map as you like, by dragging the URL bar value generated by the the Layer Preview WMS formats dropdown menu selection of "MapML" as shown below, and dropping it onto another layer's MapML preview:
+
+.. figure:: images/mapml_wms_format_dropdown.png
+
+If all goes well, you should see the layers stacked on the map and in the layer control.
 
 MapML visualization is supported by the Web-Map-Custom-Element project. The MapML viewer is built into the GeoServer layer and layer group preview facility.  You can find out more about the Web-Map-Custom-Element at the project `website <https://maps4html.org/web-map-doc/>`. Here is a simple, self-contained example of an HTML page that uses the <mapml-viewer> and <layer-> elements: 
 

@@ -6,6 +6,7 @@
 package org.geoserver.test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.geoserver.catalog.DimensionInfo.NearestFailBehavior.IGNORE;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -62,6 +63,7 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import net.sf.json.JSON;
+import net.sf.json.JSONException;
 import net.sf.json.JSONSerializer;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HeaderElement;
@@ -780,6 +782,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
     protected void revertSettings(String workspace) {
         getTestData().addSettings(workspace, getGeoServer());
     }
+
     //
     // authentication/security helpers
     //
@@ -925,6 +928,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
     protected MockHttpServletRequest createRequest(String path, boolean createSession) {
         MockHttpServletRequest request = new GeoServerMockHttpServletRequest();
 
+        request.setMethod("GET");
         request.setScheme("http");
         request.setServerName("localhost");
         request.setServerPort(8080);
@@ -1018,6 +1022,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
         MockHttpServletResponse response = getAsServletResponse(path, charset);
         return new ByteArrayInputStream(response.getContentAsString().getBytes());
     }
+
     /**
      * Executes an ows request using the GET method.
      *
@@ -1396,7 +1401,12 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
 
     protected JSON json(MockHttpServletResponse response) throws UnsupportedEncodingException {
         String content = response.getContentAsString();
-        return JSONSerializer.toJSON(content);
+        try {
+            return JSONSerializer.toJSON(content);
+        } catch (JSONException e) {
+            LOGGER.log(Level.SEVERE, "Error parsing JSON response: " + content, e);
+            throw e;
+        }
     }
 
     /** Retries the request result as a BufferedImage, checking the mime type is the expected one */
@@ -1947,6 +1957,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
      * @param layer The layer name
      * @param dimensionName The dimension name (key in the resource metadata map)
      * @param nearestMatch Whether to enable or disable nearest match
+     * @param rawNearestMatch Whether to enable or disable nearest match on WCS too
      */
     protected void setupNearestMatch(
             QName layer,
@@ -1954,11 +1965,31 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
             boolean nearestMatch,
             String acceptableInterval,
             boolean rawNearestMatch) {
+        setupNearestMatch(
+                layer, dimensionName, nearestMatch, acceptableInterval, IGNORE, rawNearestMatch);
+    }
+
+    /**
+     * Adds nearest match support to the specified layer.
+     *
+     * @param layer The layer name
+     * @param dimensionName The dimension name (key in the resource metadata map)
+     * @param nearestMatch Whether to enable or disable nearest match
+     * @param rawNearestMatch Whether to enable or disable nearest match on WCS too
+     */
+    protected void setupNearestMatch(
+            QName layer,
+            String dimensionName,
+            boolean nearestMatch,
+            String acceptableInterval,
+            DimensionInfo.NearestFailBehavior nearestFailBehavior,
+            boolean rawNearestMatch) {
         ResourceInfo info = getCatalog().getResourceByName(getLayerId(layer), ResourceInfo.class);
         DimensionInfo di = info.getMetadata().get(dimensionName, DimensionInfo.class);
         di.setNearestMatchEnabled(nearestMatch);
         di.setAcceptableInterval(acceptableInterval);
         di.setRawNearestMatchEnabled(rawNearestMatch);
+        di.setNearestFailBehavior(nearestFailBehavior);
         getCatalog().save(info);
     }
 
@@ -2192,6 +2223,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
     protected String checkOws11Exception(Document dom) throws Exception {
         return checkOws11Exception(dom, null);
     }
+
     /**
      * Performs basic checks on an OWS 1.1 exception, to ensure it's well formed and ensuring that a
      * particular exceptionCode is used.
@@ -2410,6 +2442,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
         assertEquals(xpathExpression + " x", expected.x, Double.valueOf(value.split(" ")[0]), 1E-9);
         assertEquals(xpathExpression + " y", expected.y, Double.valueOf(value.split(" ")[1]), 1E-9);
     }
+
     /**
      * Subclasses needed to do integration tests with servlet filters can override this method and
      * return the list of filters to be used during mocked requests

@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.geoserver</groupId>
     <artifactId>web</artifactId>
-    <version>2.25-SNAPSHOT</version>
+    <version>2.26-SNAPSHOT</version>
   </parent>
   <groupId>org.geoserver.web</groupId>
   <artifactId>gs-web-app</artifactId>
@@ -275,31 +275,7 @@
           </execution>
         </executions>
       </plugin>
-      <!--plugin>
-        <groupId>org.geoserver.maven</groupId>
-        <artifactId>gs-config</artifactId>
-        <version>${project.version}</version>
-        <executions>
-          <execution>
-            <id>configPackage</id>
-            <configuration>
-              <configDirectory>${configDirectory}</configDirectory>
-              <configId>${configId}</configId>
-            </configuration>
-            <phase>package</phase>
-            <goals>
-              <goal>config</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>configClean</id>
-            <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin-->
+
       <plugin>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-maven-plugin</artifactId>
@@ -345,7 +321,7 @@
         <configuration>
           <warName>geoserver</warName>
           <webappDirectory>${project.build.directory}/geoserver</webappDirectory>
-          <packagingExcludes>WEB-INF/lib/javax.servlet-api*.jar</packagingExcludes>
+          <packagingExcludes>WEB-INF/lib/javax.servlet-api*.jar,WEB-INF/lib/javax.activation-api*.jar</packagingExcludes>
           <archive>
             <manifest>
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
@@ -396,6 +372,16 @@
       </properties>
     </profile>
 
+    <profile>
+      <id>graticule</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community</groupId>
+          <artifactId>gs-graticule</artifactId>
+          <version>2.26-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
+    </profile>
     <profile>
       <id>kml</id>
       <dependencies>
@@ -629,8 +615,23 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>org.geoserver.extension</groupId>
+          <groupId>org.geoserver.community</groupId>
           <artifactId>gs-monitor-hibernate</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>monitor-kafka</id>
+      <activation>
+        <property>
+          <name>monitoring</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community</groupId>
+          <artifactId>gs-monitor-kafka</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -639,7 +640,7 @@
       <id>ogr</id>
       <dependencies>
         <dependency>
-          <groupId>org.geoserver.extension</groupId>
+          <groupId>org.geoserver.community</groupId>
           <artifactId>gs-ogr-wfs</artifactId>
           <version>${project.version}</version>
         </dependency>
@@ -649,7 +650,7 @@
       <id>ogr-wps</id>
       <dependencies>
         <dependency>
-          <groupId>org.geoserver.extension</groupId>
+          <groupId>org.geoserver.community</groupId>
           <artifactId>gs-ogr-wps</artifactId>
           <version>${project.version}</version>
         </dependency>
@@ -725,6 +726,23 @@
         </dependency>
       </dependencies>
     </profile>
+
+    <profile>
+      <id>jwt-headers</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community.jwt-headers</groupId>
+          <artifactId>jwt-headers-util</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.geoserver.community.jwt-headers</groupId>
+          <artifactId>gs-jwt-headers</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
     <profile>
       <id>cas</id>
       <dependencies>
@@ -1362,16 +1380,6 @@
       <dependencies>
         <dependency>
           <groupId>org.geoserver.community.security</groupId>
-          <artifactId>gs-sec-oauth2-core</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>org.geoserver.community.security</groupId>
-          <artifactId>gs-sec-oauth2-web</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>org.geoserver.community.security</groupId>
           <artifactId>gs-sec-oauth2-openid-connect-web</artifactId>
           <version>${project.version}</version>
         </dependency>
@@ -1640,6 +1648,16 @@
       </dependencies>
     </profile>
     <profile>
+      <id>features-autopopulate</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community</groupId>
+          <artifactId>gs-features-autopopulate-core</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>features-templating</id>
       <dependencies>
         <dependency>
@@ -1850,6 +1868,26 @@
         <dependency>
           <groupId>org.geoserver.community</groupId>
           <artifactId>gs-wps-longitudinal-profile</artifactId>
+          <version>${gs.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>rat</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.extension</groupId>
+          <artifactId>gs-rat</artifactId>
+          <version>${gs.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>wfs-freemarker</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community</groupId>
+          <artifactId>gs-wfs-freemarker</artifactId>
           <version>${gs.version}</version>
         </dependency>
       </dependencies>

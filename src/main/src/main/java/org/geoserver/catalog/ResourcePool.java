@@ -173,7 +173,7 @@ import si.uom.SI;
 public class ResourcePool {
 
     /**
-     * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees (yes, it's ugly)
+     * OGC "cylindrical earth" model, we'll use it to translate meters to degrees (yes, it's ugly)
      */
     static final double OGC_DEGREE_TO_METERS = 6378137.0 * 2.0 * Math.PI / 360;
 
@@ -188,6 +188,7 @@ public class ResourcePool {
     public static Hints.Key JOINS = new Hints.Key(List.class);
 
     public static Hints.Key MAP_CRS = new Hints.Key(CoordinateReferenceSystem.class);
+
     /** logging */
     static Logger LOGGER = Logging.getLogger("org.geoserver.catalog");
 
@@ -213,6 +214,7 @@ public class ResourcePool {
     ThreadPoolExecutor coverageExecutor;
     CatalogRepository repository;
     EntityResolverProvider entityResolverProvider;
+
     /**
      * Applies attributes customization. It's a {@link RetypeFeatureTypeCallback}, it needs to be
      * applied sooner in the process of setting up a FeatureSource, so it does not fit exactly the
@@ -312,6 +314,7 @@ public class ResourcePool {
     public Map<String, DataAccess> getDataStoreCache() {
         return dataStoreCache;
     }
+
     /**
      * DataStoreCache implementation responsible for freeing DataAccess resources when they are no
      * longer in use.
@@ -419,6 +422,7 @@ public class ResourcePool {
     protected Map<String, WebMapTileServer> createWmtsCache() {
         return new WMTSCache();
     }
+
     /**
      * Sets the size of the feature type cache.
      *
@@ -541,12 +545,7 @@ public class ResourcePool {
 
     private static String lookupIdentifierInternal(CoordinateReferenceSystem crs, boolean fullScan)
             throws FactoryException {
-        // privilege EPSG is possible
-        Integer code = CRS.lookupEpsgCode(crs, false);
-        if (code != null) {
-            return "EPSG:" + code;
-        }
-        // otherwise see if there is any code in the object itself
+        // Lookup the first code, it should be the official one for this CRS
         String result =
                 crs.getIdentifiers().stream()
                         .filter(id -> id.getAuthority() != null)
@@ -554,8 +553,29 @@ public class ResourcePool {
                         .findFirst()
                         .map(id -> id.toString())
                         .orElse(null);
+        // .. then validate it can be used to lookup the CRS, and that it matches
+        if (result != null) {
+            try {
+                // make sure the identifier is recognized (allows a lookup)
+                CoordinateReferenceSystem lookedUp = CRS.decode(result);
+                if (lookedUp != null) return result;
+            } catch (Exception e) {
+                LOGGER.log(
+                        Level.FINE,
+                        "Failed to lookup the CRS code for "
+                                + crs
+                                + " as "
+                                + result
+                                + ", moving on to look up other potential identifiers",
+                        e);
+            }
+        }
 
-        if (result != null) return result;
+        // otherwise look up for EPSG codes first
+        Integer code = CRS.lookupEpsgCode(crs, false);
+        if (code != null) {
+            return "EPSG:" + code;
+        }
 
         // search in other authorities, skipping the alias ones
         final Set<Citation> authorities = new LinkedHashSet<>();
@@ -1171,6 +1191,10 @@ public class ResourcePool {
             throws IOException {
         // TODO: support reprojection for non-simple FeatureType
         if (ft instanceof SimpleFeatureType) {
+            // configured attribute customization, execute before projection handling and callbacks
+            if (info.getAttributes() != null && !info.getAttributes().isEmpty())
+                ft = transformer.retypeFeatureType(info, ft);
+
             SimpleFeatureType sft = (SimpleFeatureType) ft;
             // create the feature type so it lines up with the "declared" schema
             SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
@@ -1195,10 +1219,6 @@ public class ResourcePool {
                 tb.add(ad);
             }
             ft = tb.buildFeatureType();
-
-            // configured attribute customization, to be run before callbacks
-            if (info.getAttributes() != null && !info.getAttributes().isEmpty())
-                ft = transformer.retypeFeatureType(info, ft);
 
             // extension point for retyping the feature type
             for (RetypeFeatureTypeCallback callback :
@@ -1950,16 +1970,27 @@ public class ResourcePool {
             WMSStoreInfo expandedStore, EntityResolver entityResolver)
             throws IOException, org.geotools.ows.ServiceException {
         HTTPClient client = getHTTPClient(expandedStore);
-        String capabilitiesURL = expandedStore.getCapabilitiesURL();
-        URL serverURL = new URL(capabilitiesURL);
+        URL serverURL = new URL(expandedStore.getCapabilitiesURL());
         Map<String, Object> hints = new HashMap<>();
         hints.put(DocumentHandler.DEFAULT_NAMESPACE_HINT_KEY, WMSSchema.getInstance());
         hints.put(DocumentFactory.VALIDATION_HINT, Boolean.FALSE);
         if (entityResolver != null) {
             hints.put(XMLHandlerHints.ENTITY_RESOLVER, entityResolver);
         }
-
-        return new WebMapServer(serverURL, client, hints);
+        WebMapServer wms;
+        if (StringUtils.isNotEmpty(expandedStore.getHeaderName())
+                && StringUtils.isNotEmpty(expandedStore.getHeaderValue())) {
+            wms =
+                    new WebMapServer(
+                            serverURL,
+                            client,
+                            hints,
+                            Collections.singletonMap(
+                                    expandedStore.getHeaderName(), expandedStore.getHeaderValue()));
+        } else {
+            wms = new WebMapServer(serverURL, client, hints);
+        }
+        return wms;
     }
 
     /**
@@ -2064,10 +2095,17 @@ public class ResourcePool {
         }
         String username = info.getUsername();
         String password = info.getPassword();
+        String authKey = info.getAuthKey();
         int connectTimeout = info.getConnectTimeout();
         int readTimeout = info.getReadTimeout();
         client.setUser(username);
         client.setPassword(password);
+        if (authKey != null) {
+            String[] kv = authKey.split("=");
+            if (kv.length == 2) {
+                client.setExtraParams(Map.of(kv[0], kv[1]));
+            }
+        }
         client.setConnectTimeout(connectTimeout);
         client.setReadTimeout(readTimeout);
 
@@ -2166,6 +2204,7 @@ public class ResourcePool {
 
         return sld;
     }
+
     /**
      * Returns the first {@link Style} in a style resource, caching the result. Any associated
      * images should also be unpacked onto the local machine. ResourcePool will watch the style for
@@ -2213,7 +2252,7 @@ public class ResourcePool {
                     "Could not extract a UserStyle definition from " + info.getName());
         }
         // Make sure we don't change the name of an object in sldCache
-        return new StyleBuilder().reset(style).name(info.getName()).buildStyle();
+        return new StyleBuilder().reset(style).name(info.prefixedName()).buildStyle();
     }
 
     /**
@@ -2445,6 +2484,7 @@ public class ResourcePool {
             }
         }
     }
+
     /**
      * Custom CatalogResourceCache responsible for disposing of DataAccess instances (allowing the
      * recovery of operating system resources).
@@ -2622,6 +2662,7 @@ public class ResourcePool {
             }
         }
     }
+
     /** Listens to catalog events clearing cache entires when resources are modified. */
     public static class CacheClearingListener extends CatalogVisitorAdapter
             implements CatalogListener {
@@ -2679,6 +2720,7 @@ public class ResourcePool {
             pool.clear(style);
         }
     }
+
     /**
      * Used to clean up any outstanding data store listeners.
      *

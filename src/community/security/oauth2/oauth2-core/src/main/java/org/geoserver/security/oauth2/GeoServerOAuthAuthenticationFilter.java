@@ -119,9 +119,6 @@ public abstract class GeoServerOAuthAuthenticationFilter
                 || authentication instanceof AnonymousAuthenticationToken
                 || accessToken != null) {
 
-            if (authentication instanceof AnonymousAuthenticationToken) {
-                SecurityContextHolder.getContext().setAuthentication(null);
-            }
             OAuth2AccessToken token = restTemplate.getOAuth2ClientContext().getAccessToken();
 
             if (accessToken != null && token != null && !token.getValue().equals(accessToken)) {
@@ -144,12 +141,7 @@ public abstract class GeoServerOAuthAuthenticationFilter
                 final AccessTokenRequest accessTokenRequest =
                         restTemplate.getOAuth2ClientContext().getAccessTokenRequest();
                 if (accessTokenRequest != null) {
-                    if (accessTokenRequest.getStateKey() != null)
-                        restTemplate
-                                .getOAuth2ClientContext()
-                                .removePreservedState(accessTokenRequest.getStateKey());
-                    if (accessTokenRequest.containsKey("access_token"))
-                        clearAccessTokenRequest(httpRequest, accessTokenRequest);
+                    enhanceAccessTokenRequest(httpRequest, accessTokenRequest);
                 }
             }
 
@@ -175,6 +167,29 @@ public abstract class GeoServerOAuthAuthenticationFilter
             }
         }
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Enhance accessTokenRequest after creation by the restTemplate.
+     *
+     * <p>The default implementation handles {@code access_token} and state key.
+     *
+     * @param httpRequest
+     * @param accessTokenRequest Access token request, non {@code null}
+     */
+    protected void enhanceAccessTokenRequest(
+            HttpServletRequest httpRequest, AccessTokenRequest accessTokenRequest) {
+        var session = httpRequest.getSession();
+        var validator = (String) session.getAttribute("OIDC_CODE_VERIFIER");
+        accessTokenRequest.put("code_verifier", Collections.singletonList(validator));
+
+        if (accessTokenRequest.getStateKey() != null)
+            restTemplate
+                    .getOAuth2ClientContext()
+                    .removePreservedState(accessTokenRequest.getStateKey());
+
+        if (accessTokenRequest.containsKey("access_token"))
+            clearAccessTokenRequest(httpRequest, accessTokenRequest);
     }
 
     private void clearAccessTokenRequest(
@@ -351,8 +366,8 @@ public abstract class GeoServerOAuthAuthenticationFilter
                 result = new PreAuthenticatedAuthenticationToken(principal, null, roles);
             }
             result.setDetails(getAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(result);
         }
-        SecurityContextHolder.getContext().setAuthentication(result);
     }
 
     @Override

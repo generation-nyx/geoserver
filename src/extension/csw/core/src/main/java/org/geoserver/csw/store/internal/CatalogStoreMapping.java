@@ -94,6 +94,8 @@ public class CatalogStoreMapping {
         }
     }
 
+    protected String mappingName;
+
     protected static final Logger LOGGER = Logging.getLogger(CatalogStoreMapping.class);
 
     protected static final FilterFactory ff = CommonFactoryFinder.getFilterFactory();
@@ -163,7 +165,11 @@ public class CatalogStoreMapping {
         mapping.identifier = identifier;
 
         mapping.includeEnvelope =
-                includeEnvelope && paths.contains(rd.getBoundingBoxPropertyName());
+                includeEnvelope
+                        && paths.contains(
+                                rd.getQueryablesMapping(mappingName).getBoundingBoxPropertyName());
+
+        mapping.mappingName = mappingName;
 
         return mapping;
     }
@@ -184,7 +190,7 @@ public class CatalogStoreMapping {
      * if the key starts with @ it also defines the ID element and if the key starts with $ it is a
      * required property.
      */
-    public static CatalogStoreMapping parse(Map<String, String> mappingSource) {
+    public static CatalogStoreMapping parse(Map<String, String> mappingSource, String mappingName) {
 
         CatalogStoreMapping mapping = new CatalogStoreMapping();
         for (Map.Entry<String, String> mappingEntry : mappingSource.entrySet()) {
@@ -227,6 +233,13 @@ public class CatalogStoreMapping {
             if (id) {
                 mapping.identifier = element;
             }
+        }
+
+        int index = mappingName.indexOf('-');
+        if (index >= 0) {
+            mapping.setMappingName(mappingName.substring(index + 1));
+        } else {
+            mapping.setMappingName("");
         }
 
         return mapping;
@@ -276,5 +289,13 @@ public class CatalogStoreMapping {
         }
         sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
+    }
+
+    public String getMappingName() {
+        return mappingName;
+    }
+
+    public void setMappingName(String mappingName) {
+        this.mappingName = mappingName;
     }
 }

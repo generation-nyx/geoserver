@@ -24,8 +24,10 @@ public class ConditionTest extends AbstractWicketMetadataTest {
     }
 
     @After
-    public void after() throws Exception {
+    @Override
+    public void stop() throws Exception {
         restoreLayers();
+        super.stop();
     }
 
     @Test
@@ -43,7 +45,7 @@ public class ConditionTest extends AbstractWicketMetadataTest {
                         tester.getComponentFromLastRenderedPage(
                                 "publishedinfo:tabs:panel:metadataPanel:attributesPanel:attributesTablePanel:listContainer:items");
         tester.submitForm("publishedinfo");
-        assertEquals(13, c.size());
+        assertEquals(14, c.size());
         logout();
     }
 }

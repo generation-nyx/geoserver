@@ -7,6 +7,7 @@ package org.geoserver.wms.map;
 
 import static org.geoserver.template.TemplateUtils.FM_VERSION;
 
+import freemarker.core.HTMLOutputFormat;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.LayerGroupInfo;
+import org.geoserver.catalog.ResourcePool;
 import org.geoserver.catalog.impl.LayerGroupStyle;
 import org.geoserver.ows.LocalPublished;
 import org.geoserver.ows.LocalWorkspace;
@@ -107,6 +109,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
         BeansWrapper bw = new BeansWrapper(FM_VERSION);
         bw.setExposureLevel(BeansWrapper.EXPOSE_PROPERTIES_ONLY);
         cfg.setObjectWrapper(bw);
+        cfg.setOutputFormat(HTMLOutputFormat.INSTANCE);
     }
 
     /** wms configuration */
@@ -124,17 +127,15 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
             String templateName = getTemplateName(mapContent);
             Template template = cfg.getTemplate(templateName);
             HashMap<String, Object> map = new HashMap<>();
-            map.put("context", mapContent);
-            boolean hasOnlyCoverages = hasOnlyCoverages(mapContent);
-            map.put("pureCoverage", hasOnlyCoverages);
-            map.put("supportsFiltering", supportsFiltering(mapContent));
+            map.put("pureCoverage", Boolean.toString(hasOnlyCoverages(mapContent)));
+            map.put("supportsFiltering", Boolean.toString(supportsFiltering(mapContent)));
             map.put("styles", styleNames(mapContent));
             GetMapRequest request = mapContent.getRequest();
             map.put("request", request);
-            map.put("yx", String.valueOf(isWms13FlippedCRS(request.getCrs())));
+            map.put("yx", Boolean.toString(isWms13FlippedCRS(request.getCrs())));
             map.put(
                     "maxResolution",
-                    Double.valueOf(getMaxResolution(mapContent.getRenderingArea())));
+                    Double.toString(getMaxResolution(mapContent.getRenderingArea())));
             ProjectionHandler handler = null;
             try {
                 handler =
@@ -147,7 +148,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
             }
             map.put(
                     "global",
-                    String.valueOf(
+                    Boolean.toString(
                             handler != null && handler instanceof WrappingProjectionHandler));
 
             String baseUrl =
@@ -212,7 +213,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
 
     private boolean isWms13FlippedCRS(CoordinateReferenceSystem crs) {
         try {
-            String code = CRS.lookupIdentifier(crs, false);
+            String code = ResourcePool.lookupIdentifier(crs, false);
             if (code == null) return false;
             if (!code.contains("EPSG:")) {
                 code = "EPGS:" + code;
@@ -348,7 +349,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
         }
         if (!exceptionsFound) {
             Map<String, String> map = new HashMap<>();
-            map.put("name", "exceptions");
+            map.put("name", "EXCEPTIONS");
             map.put("value", "application/vnd.ogc.se_inimage");
             result.add(map);
         }

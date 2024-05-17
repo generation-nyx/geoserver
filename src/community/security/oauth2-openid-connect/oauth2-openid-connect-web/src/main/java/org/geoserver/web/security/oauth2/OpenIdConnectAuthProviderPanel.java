@@ -139,6 +139,8 @@ public class OpenIdConnectAuthProviderPanel
 
         add(new HelpLink("jwkURIHelp", this).setDialog(dialog));
         add(new TextField<String>("jwkURI"));
+        add(new HelpLink("enforceTokenValidationHelp", this).setDialog(dialog));
+        add(new CheckBox("enforceTokenValidation"));
 
         add(new HelpLink("postLogoutRedirectUriHelp", this).setDialog(dialog));
         add(new TextField<String>("postLogoutRedirectUri"));
@@ -153,6 +155,9 @@ public class OpenIdConnectAuthProviderPanel
 
         add(new HelpLink("allowBearerTokensHelp", this).setDialog(dialog));
         add(new CheckBox("allowBearerTokens"));
+
+        add(new HelpLink("PKCEHelp", this).setDialog(dialog));
+        add(new CheckBox("usePKCE"));
     }
 
     @Override

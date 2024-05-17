@@ -12,7 +12,7 @@
   <parent>
     <groupId>org.geoserver.community</groupId>
     <artifactId>gs-security</artifactId>
-    <version>2.25-SNAPSHOT</version>
+    <version>2.26-SNAPSHOT</version>
   </parent>
 
   <groupId>org.geoserver.community</groupId>
@@ -49,10 +49,6 @@
       <artifactId>json-lib</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
     </dependency>
@@ -77,14 +73,6 @@
     <dependency>
       <groupId>org.geoserver.community.security</groupId>
       <artifactId>gs-sec-oauth2-core</artifactId>
-      <version>${project.version}</version>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.geoserver.community.security</groupId>
-      <artifactId>gs-sec-oauth2-web</artifactId>
       <version>${project.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>

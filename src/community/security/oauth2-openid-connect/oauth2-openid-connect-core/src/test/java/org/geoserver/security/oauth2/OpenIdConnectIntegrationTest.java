@@ -78,7 +78,7 @@ public class OpenIdConnectIntegrationTest extends GeoServerSystemTestSupport {
                                         .withStatus(200)
                                         .withHeader(
                                                 "Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                                        .withBodyFile("jkws.json")));
+                                        .withBodyFile("jwks.json")));
 
         openIdService.stubFor(
                 WireMock.post(urlPathEqualTo("/token"))
@@ -142,6 +142,8 @@ public class OpenIdConnectIntegrationTest extends GeoServerSystemTestSupport {
         filterConfig.setLoginEndpoint("/j_spring_oauth2_openid_connect_login");
         filterConfig.setLogoutEndpoint("/j_spring_oauth2_openid_connect_logout");
         filterConfig.setLogoutUri(authService + "/endSession");
+        filterConfig.setJwkURI(authService + "/.well-known/jwks.json");
+        filterConfig.setEnforceTokenValidation(false);
         filterConfig.setScopes("openid profile email phone address");
         filterConfig.setEnableRedirectAuthenticationEntryPoint(true);
         filterConfig.setPrincipalKey("email");
@@ -220,7 +222,7 @@ public class OpenIdConnectIntegrationTest extends GeoServerSystemTestSupport {
     public void testClientConfidential() throws Exception {
         GeoServerSecurityManager manager = getSecurityManager();
         OpenIdConnectFilterConfig config =
-                (OpenIdConnectFilterConfig) manager.loadFilterConfig("openidconnect");
+                (OpenIdConnectFilterConfig) manager.loadFilterConfig("openidconnect", true);
         config.setSendClientSecret(true);
         manager.saveFilter(config);
 
@@ -245,7 +247,7 @@ public class OpenIdConnectIntegrationTest extends GeoServerSystemTestSupport {
     public void testIdTokenHintInEndSessionURI() throws Exception {
         GeoServerSecurityManager manager = getSecurityManager();
         OpenIdConnectFilterConfig config =
-                (OpenIdConnectFilterConfig) manager.loadFilterConfig("openidconnect");
+                (OpenIdConnectFilterConfig) manager.loadFilterConfig("openidconnect", true);
         config.setSendClientSecret(true);
         config.setPostLogoutRedirectUri(null);
         manager.saveFilter(config);

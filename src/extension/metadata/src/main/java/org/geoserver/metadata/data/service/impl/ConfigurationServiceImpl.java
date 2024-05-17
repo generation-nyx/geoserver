@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -144,17 +145,17 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             try (InputStream in = file.in()) {
                 readConfiguration(in, mapper);
             } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                LOGGER.log(Level.FINE, e.getMessage(), e);
             }
             try (InputStream in = file.in()) {
                 readMapping(in, mapper);
             } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                LOGGER.log(Level.FINE, e.getMessage(), e);
             }
             try (InputStream in = file.in()) {
                 readingCustomNativeMapping(in, mapper);
             } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                LOGGER.log(Level.FINE, e.getMessage(), e);
             }
         }
         // add feature catalog
@@ -162,7 +163,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 getClass().getResourceAsStream(MetadataConstants.FEATURE_CATALOG_CONFIG_FILE)) {
             readConfiguration(in, mapper);
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e.getMessage(), e);
+            LOGGER.log(Level.FINE, e.getMessage(), e);
         }
         // add WCS field
         if (configuration.isWcsField()) {
@@ -170,7 +171,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                     getClass().getResourceAsStream(MetadataConstants.WCS_FIELD_CONFIG_FILE)) {
                 readConfiguration(in, mapper);
             } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                LOGGER.log(Level.FINE, e.getMessage(), e);
             }
         }
 
@@ -229,6 +230,12 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 typesKeys.add(type.getTypename());
             }
         }
+        // Merge Tabs configuration and remove duplicates
+        LinkedHashSet<String> tabs = new LinkedHashSet<>();
+        tabs.addAll(configuration.getTabs());
+        tabs.addAll(config.getTabs());
+        configuration.getTabs().clear();
+        configuration.getTabs().addAll(tabs);
 
         // merge csv imports
         for (String csvImport : config.getCsvImports()) {
@@ -295,7 +302,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 }
 
             } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                LOGGER.log(Level.FINE, e.getMessage(), e);
             }
         }
     }
